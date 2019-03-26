@@ -1,0 +1,5 @@
+services:
+  neg_purger.overrider:
+    class: \Drupal\neg_purger\ConfigOverrides
+    tags:
+      - {name: config.factory.override, priority: 5}
