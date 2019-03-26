@@ -1,0 +1,8 @@
+name: Negnet ECS Purger
+type: module
+description: 'Purger for Negnet ECS. Purges page caches from Negnet Drupal8 Docker Container. Works together with the purge module.'
+package: "Purge - reverse proxies & CDNs"
+core: 8.x
+dependencies:
+  - purge:purge
+  - purge:purge_tokens
