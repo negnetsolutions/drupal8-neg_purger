@@ -6,3 +6,5 @@ core: 8.x
 dependencies:
   - purge:purge
   - purge:purge_tokens
+  - purge:purge_queuer_coretags
+  - purge:purge_processor_lateruntime
