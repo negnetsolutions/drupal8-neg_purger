@@ -8,6 +8,7 @@ use Drupal\Core\Utility\Token;
 use Drupal\purge\Plugin\Purge\Purger\PurgerBase;
 use Drupal\purge\Plugin\Purge\Purger\PurgerInterface;
 use Drupal\purge\Plugin\Purge\Invalidation\InvalidationInterface;
+use Drupal\neg_purger\Settings;
 
 /**
  * Abstract base class for HTTP based configurable purgers.
@@ -162,17 +163,72 @@ abstract class NegPurgerBase extends PurgerBase implements PurgerInterface {
   }
 
   /**
+   * Lists all hosts.
+   */
+  public static function listHosts() {
+    $settings = Settings::config();
+    $type = ($settings->get('type') !== NULL) ? $settings->get('type') : 'host';
+    $host = ($settings->get('host') !== NULL) ? $settings->get('host') : '127.0.0.1:80';
+
+    $hosts = [];
+
+    if ($type === 'host') {
+      $hosts[] = $host;
+    }
+    else {
+      // SRV records.
+      $records = dns_get_record($host, \DNS_SRV);
+
+      if ($records === FALSE) {
+        throw new \Exception('Couldn\'t lookup SRV records for host ' . $host);
+      }
+
+      foreach ($records as $record) {
+        $hosts[] = $record['target'] . ':' . $record['port'];
+      }
+    }
+
+    return $hosts;
+  }
+
+  /**
+   * Gets all URIs to connect to.
+   */
+  protected function getUris($token_data) {
+    $settings = Settings::config();
+    $type = ($settings->get('type') !== NULL) ? $settings->get('type') : 'host';
+    $host = ($settings->get('host') !== NULL) ? $settings->get('host') : '127.0.0.1:80';
+
+    $hosts = [];
+
+    if ($type === 'host') {
+      $hosts[] = $this->getUri($host, $token_data);
+    }
+    else {
+      // SRV records.
+      $records = dns_get_record($host, \DNS_SRV);
+      foreach ($records as $record) {
+        $hosts[] = $this->getUri($record['target'] . ':' . $record['port'], $token_data);
+      }
+    }
+
+    return $hosts;
+  }
+
+  /**
    * Retrieve the URI to connect to.
    *
+   * @param string $host
+   *   A string with the host to connect to.
    * @param array $token_data
    *   An array of keyed objects, to pass on to the token service.
    *
    * @return string
    *   URL string representation.
    */
-  protected function getUri($token_data) {
+  protected function getUri(string $host, array $token_data) {
     return sprintf(
-      'http://127.0.0.1:80%',
+      "http://$host%",
       $this->token->replace('/', $token_data)
     );
   }

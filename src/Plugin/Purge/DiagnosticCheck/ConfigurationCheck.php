@@ -6,6 +6,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\purge\Plugin\Purge\Purger\PurgersServiceInterface;
 use Drupal\purge\Plugin\Purge\DiagnosticCheck\DiagnosticCheckInterface;
 use Drupal\purge\Plugin\Purge\DiagnosticCheck\DiagnosticCheckBase;
+use Drupal\neg_purger\Plugin\Purge\Purger\NegPurgerBase;
 
 /**
  * Verifies that only fully configured Varnish purgers load.
@@ -58,7 +59,20 @@ class ConfigurationCheck extends DiagnosticCheckBase implements DiagnosticCheckI
    * {@inheritdoc}
    */
   public function run() {
-    $this->recommendation = $this->t("Neg Purger Configured Successfully.");
+    try {
+      $hosts = NegPurgerBase::listHosts();
+    }
+    catch (\Exception $e) {
+      $this->recommendation = $e->getMessage();
+      return self::SEVERITY_ERROR;
+    }
+
+    $msg = "Neg Purger Configured Successfully.\nHosts: ";
+    foreach ($hosts as $host) {
+      $msg .= "\n$host";
+    }
+
+    $this->recommendation = $msg;
     return self::SEVERITY_OK;
   }
 
