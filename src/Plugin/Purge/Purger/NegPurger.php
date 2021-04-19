@@ -11,7 +11,7 @@ use Drupal\purge\Plugin\Purge\Invalidation\InvalidationInterface;
  * @PurgePurger(
  *   id = "negpurger",
  *   label = @Translation("Neg ECS Purger"),
- *   cooldown_time = 0.25,
+ *   cooldown_time = 0.0,
  *   description = @Translation("Configurable purger that makes HTTP requests for each given invalidation instruction."),
  *   configform = "\Drupal\neg_purger\Form\PurgerForm",
  *   multi_instance = FALSE,
