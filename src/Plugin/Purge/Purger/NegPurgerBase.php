@@ -7,7 +7,6 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Utility\Token;
 use Drupal\purge\Plugin\Purge\Purger\PurgerBase;
 use Drupal\purge\Plugin\Purge\Purger\PurgerInterface;
-use Drupal\purge\Plugin\Purge\Invalidation\InvalidationInterface;
 use Drupal\neg_purger\Settings;
 
 /**
@@ -23,7 +22,7 @@ abstract class NegPurgerBase extends PurgerBase implements PurgerInterface {
   /**
    * The token service.
    *
-   * @var \Drupal\Core\Utility\Token.
+   * @var \Drupal\Core\Utility\Token
    */
   protected $token;
 
@@ -41,7 +40,7 @@ abstract class NegPurgerBase extends PurgerBase implements PurgerInterface {
    * @param \Drupal\Core\Utility\Token $token
    *   The token service.
    */
-  function __construct(array $configuration, $plugin_id, $plugin_definition, ClientInterface $http_client, Token $token) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, ClientInterface $http_client, Token $token) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
     $this->client = $http_client;
     $this->token = $token;
@@ -126,15 +125,14 @@ abstract class NegPurgerBase extends PurgerBase implements PurgerInterface {
    * @param array $token_data
    *   An array of keyed objects, to pass on to the token service.
    *
-   *
    * @return mixed[]
    *   Associative array with option/value pairs.
    */
   protected function getOptions($token_data) {
     $opt = [
       'http_errors' => TRUE,
-      'connect_timeout' => 1.0,
-      'timeout' => 1.0,
+      'connect_timeout' => 0.25,
+      'timeout' => 0.5,
       'headers' => $this->getHeaders($token_data),
     ];
     return $opt;
@@ -146,7 +144,7 @@ abstract class NegPurgerBase extends PurgerBase implements PurgerInterface {
   public function getTimeHint() {
 
     // When runtime measurement is enabled, we just use the base implementation.
-    // if ($this->settings->runtime_measurement) {
+    // if ($this->settings->runtime_measurement) {.
     if (TRUE) {
       return parent::getTimeHint();
     }
@@ -164,6 +162,42 @@ abstract class NegPurgerBase extends PurgerBase implements PurgerInterface {
   }
 
   /**
+   * Gets hosts from SRV records.
+   */
+  protected static function getHostsFromSrvRecord($host) {
+    $hosts = [];
+
+    $r = new \Net_DNS2_Resolver([
+      'timeout' => 1,
+    ]);
+
+    try {
+      $result = $r->query($host, 'SRV');
+
+      foreach ($result->answer as $answer) {
+        // Get's A record from answer target.
+        try {
+          $resultA = $r->query($answer->target, 'A');
+          if (isset($resultA->answer) && count($resultA->answer) > 0 && property_exists($resultA->answer[0], 'address') && strlen($resultA->answer[0]->address) > 0) {
+            $hosts[] = $resultA->answer[0]->address . ':' . $answer->port;
+          }
+        }
+        catch (\Exception $e) {
+        }
+      }
+    }
+    catch (\Exception $e) {
+    }
+
+    if (count($hosts) === 0) {
+      // Default to localhost since we have issues with returning no hosts.
+      $hosts[] = '127.0.0.1:80';
+    }
+
+    return $hosts;
+  }
+
+  /**
    * Lists all hosts.
    */
   public static function listHosts() {
@@ -177,16 +211,7 @@ abstract class NegPurgerBase extends PurgerBase implements PurgerInterface {
       $hosts[] = $host;
     }
     else {
-      // SRV records.
-      $records = dns_get_record($host, \DNS_SRV);
-
-      if ($records === FALSE) {
-        throw new \Exception('Couldn\'t lookup SRV records for host ' . $host);
-      }
-
-      foreach ($records as $record) {
-        $hosts[] = $record['target'] . ':' . $record['port'];
-      }
+      $hosts = self::getHostsFromSrvRecord($host);
     }
 
     return $hosts;
@@ -207,9 +232,8 @@ abstract class NegPurgerBase extends PurgerBase implements PurgerInterface {
     }
     else {
       // SRV records.
-      $records = dns_get_record($host, \DNS_SRV);
-      foreach ($records as $record) {
-        $hosts[] = $this->getUri($record['target'] . ':' . $record['port'], $token_data);
+      foreach (self::getHostsFromSrvRecord($host) as $record) {
+        $hosts[] = $this->getUri($record, $token_data);
       }
     }
 
