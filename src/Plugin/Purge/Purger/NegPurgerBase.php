@@ -92,6 +92,7 @@ abstract class NegPurgerBase extends PurgerBase implements PurgerInterface {
     $headers = [];
     $headers['user-agent'] = 'neg_purger module for Drupal 8.';
     $headers['X-Api-Password'] = 'g@dTJw.moMsyZYPN6x8Vvw2b3';
+    $headers['X-Host'] = \Drupal::request()->getHost();
 
     $h = [
       [
