@@ -54,6 +54,11 @@ class NegPurger extends NegPurgerBase implements PurgerInterface {
         }
         catch (RequestException $e) {
           $invalidation->setState(InvalidationInterface::SUCCEEDED);
+
+          $debug['msg'] = $e->getMessage();
+
+          $this->logger()->emergency("item failed due @e, details (JSON): @debug",
+            ['@e' => get_class($e), '@debug' => json_encode(str_replace("\n", ' ', $debug))]);
         }
         catch (\Exception $e) {
           $invalidation->setState(InvalidationInterface::FAILED);
