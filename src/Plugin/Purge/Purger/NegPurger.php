@@ -33,13 +33,10 @@ class NegPurger extends NegPurgerBase implements PurgerInterface {
       foreach ($this->getUris($token_data) as $uri) {
 
         // Log as much useful information as we can.
-        $headers = $opt['headers'];
-        unset($opt['headers']);
         $debug = [
           'uri' => $uri,
           'method' => 'BAN',
           'guzzle_opt' => $opt,
-          'headers' => $headers,
         ];
 
         try {
