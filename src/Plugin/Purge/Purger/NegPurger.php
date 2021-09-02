@@ -31,28 +31,36 @@ class NegPurger extends NegPurgerBase implements PurgerInterface {
       $opt = $this->getOptions($token_data);
 
       foreach ($this->getUris($token_data) as $uri) {
+
+        // Log as much useful information as we can.
+        $headers = $opt['headers'];
+        unset($opt['headers']);
+        $debug = [
+          'uri' => $uri,
+          'method' => 'BAN',
+          'guzzle_opt' => $opt,
+          'headers' => $headers,
+        ];
+
         try {
-          $this->client->request('BAN', $uri, $opt);
+          $response = $this->client->request('BAN', $uri, $opt);
           $invalidation->setState(InvalidationInterface::SUCCEEDED);
+
+          $debug['code'] = $response->getStatusCode();
+          $debug['reasonPhrase'] = $response->getReasonPhrase();
+
+          $this->logger()->debug("PURGE (JSON): @debug",
+            ['@debug' => json_encode(str_replace("\n", ' ', $debug))]);
         }
         catch (RequestException $e) {
           $invalidation->setState(InvalidationInterface::SUCCEEDED);
         }
         catch (\Exception $e) {
           $invalidation->setState(InvalidationInterface::FAILED);
+          $debug['msg'] = $e->getMessage();
 
-          // Log as much useful information as we can.
-          $headers = $opt['headers'];
-          unset($opt['headers']);
-          $debug = json_encode(str_replace("\n", ' ', [
-            'msg' => $e->getMessage(),
-            'uri' => $uri,
-            'method' => 'BAN',
-            'guzzle_opt' => $opt,
-            'headers' => $headers,
-          ]));
           $this->logger()->emergency("item failed due @e, details (JSON): @debug",
-            ['@e' => get_class($e), '@debug' => $debug]);
+            ['@e' => get_class($e), '@debug' => json_encode(str_replace("\n", ' ', $debug))]);
         }
       }
     }
