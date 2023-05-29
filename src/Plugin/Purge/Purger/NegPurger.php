@@ -18,54 +18,62 @@ use Drupal\purge\Plugin\Purge\Invalidation\InvalidationInterface;
  *   types = {},
  * )
  */
-class NegPurger extends NegPurgerBase implements PurgerInterface {
+class NegPurger extends NegPurgerBase implements PurgerInterface
+{
 
-  /**
-   * {@inheritdoc}
-   */
-  public function invalidate(array $invalidations) {
+    /**
+     * {@inheritdoc}
+     */
+    public function invalidate(array $invalidations)
+    {
 
-    // Iterate every single object and fire a request per object.
-    foreach ($invalidations as $invalidation) {
-      $token_data = ['invalidation' => $invalidation];
-      $opt = $this->getOptions($token_data);
+        // Iterate every single object and fire a request per object.
+        foreach ($invalidations as $invalidation) {
+            $token_data = ['invalidation' => $invalidation];
+            $opt = $this->getOptions($token_data);
 
-      foreach ($this->getUris($token_data) as $uri) {
+            foreach ($this->getUris($token_data) as $uri) {
 
-        // Log as much useful information as we can.
-        $debug = [
-          'uri' => $uri,
-          'method' => 'BAN',
-          'guzzle_opt' => $opt,
-        ];
+                // Log as much useful information as we can.
+                $debug = [
+                'uri' => $uri,
+                'method' => 'BAN',
+                'guzzle_opt' => $opt,
+                ];
 
-        try {
-          $response = $this->client->request('BAN', $uri, $opt);
-          $invalidation->setState(InvalidationInterface::SUCCEEDED);
+                try {
+                    $response = $this->client->request('BAN', $uri, $opt);
+                    $invalidation->setState(InvalidationInterface::SUCCEEDED);
 
-          $debug['code'] = $response->getStatusCode();
-          $debug['reasonPhrase'] = $response->getReasonPhrase();
+                    $debug['code'] = $response->getStatusCode();
+                    $debug['reasonPhrase'] = $response->getReasonPhrase();
 
-          $this->logger()->debug("PURGE (JSON): @debug",
-            ['@debug' => json_encode(str_replace("\n", ' ', $debug))]);
+                    $this->logger()->debug(
+                        "PURGE (JSON): @debug",
+                        ['@debug' => json_encode($debug)]
+                    );
+                }
+                catch (RequestException $e) {
+                    $invalidation->setState(InvalidationInterface::SUCCEEDED);
+
+                    $debug['msg'] = $e->getMessage();
+
+                    $this->logger()->emergency(
+                        "item failed due @e, details (JSON): @debug",
+                        ['@e' => get_class($e), '@debug' => json_encode($debug)]
+                    );
+                }
+                catch (\Exception $e) {
+                    $invalidation->setState(InvalidationInterface::FAILED);
+                    $debug['msg'] = $e->getMessage();
+
+                    $this->logger()->emergency(
+                        "item failed due @e, details (JSON): @debug",
+                        ['@e' => get_class($e), '@debug' => json_encode($debug)]
+                    );
+                }
+            }
         }
-        catch (RequestException $e) {
-          $invalidation->setState(InvalidationInterface::SUCCEEDED);
-
-          $debug['msg'] = $e->getMessage();
-
-          $this->logger()->emergency("item failed due @e, details (JSON): @debug",
-            ['@e' => get_class($e), '@debug' => json_encode(str_replace("\n", ' ', $debug))]);
-        }
-        catch (\Exception $e) {
-          $invalidation->setState(InvalidationInterface::FAILED);
-          $debug['msg'] = $e->getMessage();
-
-          $this->logger()->emergency("item failed due @e, details (JSON): @debug",
-            ['@e' => get_class($e), '@debug' => json_encode(str_replace("\n", ' ', $debug))]);
-        }
-      }
     }
-  }
 
 }
